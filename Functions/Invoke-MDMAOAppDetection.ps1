@@ -46,13 +46,14 @@
     .NOTES
         Function Name  : Invoke-MDMAOAppDetection
         Author         : Timothy Gruber
-        Version        : 2.0.0
+        Version        : 2.1.0
         Created        : 2024-10-23
-        Updated        : 2024-12-31
+        Updated        : 2025-04-29
 
         Version History:
         1.0.0 - (2024-10-23) Initial version.
         2.0.0 - (2024-12-31) Updated to work with PSADT 4.0.4+.
+        2.1.0 - (2024-12-31) Added windowsInstaller and GUID check from Get-ADTApplication.
     #>
 
     [CmdletBinding()]
@@ -129,6 +130,7 @@
                         $psPropNames = $appRegProps.PSObject.Properties | Select-Object -ExpandProperty Name
                         $defUriValue = [System.Uri][System.String]::Empty
                         $installDate = [System.DateTime]::MinValue
+                        $defaultGuid = [System.Guid]::Empty
 
                         # Exclude anything without any properties.
                         if (!$psPropNames)
@@ -142,6 +144,10 @@
                             continue
                         }
 
+                        # Determine if Windows installer and if so, get the GUID.
+                        $windowsInstaller = !!$(if ($psPropNames.Contains('WindowsInstaller')) { $appRegProps.WindowsInstaller })
+                        $appMsiGuid = if ($windowsInstaller -and [System.Guid]::TryParse($appRegProps.PSChildName, [ref]$defaultGuid)) { $defaultGuid }
+
                         # Determine the install date. If the key has a valid property, we use it. If not, we get the LastWriteDate for the key from the registry.
                         if (!$psPropNames.Contains('InstallDate') -or ![System.DateTime]::TryParseExact($appRegProps.InstallDate, "yyyyMMdd", [System.Globalization.CultureInfo]::InvariantCulture, [System.Globalization.DateTimeStyles]::None, [ref]$installDate))
                         {
@@ -153,7 +159,7 @@
                             $appRegProps.PSPath,
                             $appRegProps.PSParentPath,
                             $appRegProps.PSChildName,
-                            $null, # ProductCode (not typically available for user-level apps)
+                            $appMsiGuid,
                             $appRegProps.DisplayName,
                             $(if ($psPropNames.Contains('DisplayVersion') -and ![System.String]::IsNullOrWhiteSpace($appRegProps.DisplayVersion)) { $appRegProps.DisplayVersion }),
                             $(if ($psPropNames.Contains('UninstallString') -and ![System.String]::IsNullOrWhiteSpace($appRegProps.UninstallString)) { $appRegProps.UninstallString }),
@@ -165,7 +171,7 @@
                             $(if ($psPropNames.Contains('HelpLink') -and ![System.String]::IsNullOrWhiteSpace($appRegProps.HelpLink) -and [System.Uri]::TryCreate($appRegProps.HelpLink, [System.UriKind]::Absolute, [ref]$defUriValue)) { $defUriValue }),
                             $(if ($psPropNames.Contains('EstimatedSize') -and ![System.String]::IsNullOrWhiteSpace($appRegProps.EstimatedSize)) { $appRegProps.EstimatedSize }),
                             !!$(if ($psPropNames.Contains('SystemComponent')) { $appRegProps.SystemComponent }),
-                            $false, # WindowsInstaller
+                            $windowsInstaller,
                             ([System.Environment]::Is64BitProcess -and ($appRegProps.PSPath -notmatch '^Microsoft\.PowerShell\.Core\\Registry::HKEY_LOCAL_MACHINE\\SOFTWARE\\Wow6432Node'))
                         )
 
