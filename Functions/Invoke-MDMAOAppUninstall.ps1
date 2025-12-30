@@ -1,8 +1,8 @@
-﻿function Invoke-MDMAOAppUninstall
+function Invoke-MDMAOAppUninstall
 {
     <#
     .SYNOPSIS
-        Uninstalls one or more applications intelligently based on context (user/system, MSI/EXE). Used with PSADT.
+        Uninstalls one or more applications intelligently based on context (user/system, MSI/EXE).
 
     .DESCRIPTION
         - Automatically detects whether an app was installed in the user or system context.
@@ -30,7 +30,7 @@
 
     .PARAMETER SuccessExitCodes
         One or more integer exit codes considered successful.
-        Default = 0. Example: @(0, 20) for Chrome.
+        Default = 0. Example: @(0, 19, 20) for Chrome.
 
     .EXAMPLE
         Invoke-MDMAOAppUninstall -Apps $apps
@@ -41,13 +41,14 @@
     .NOTES
         Function Name  : Invoke-MDMAOAppUninstall
         Author         : Timothy Gruber
-        Version        : 1.1.0
+        Version        : 1.2.0
         Created        : 2025-04-27
         Updated        : 2025-04-29
 
         Version History:
         1.0.0 - (2025-04-27) Initial version.
-        1.1.0 - (2025-04-29) Refactored with USER-CONTEXT MSI UNINSTALL, skipApp handling, and StdOut/Err logging for user/system exe uninstalls.
+        1.1.0 - (2025-04-27) Refactored with USER-CONTEXT MSI UNINSTALL, skipApp handling, and StdOut/Err logging for user/system exe uninstalls.
+        1.2.0 - (2025-08-15) Fix user context detection.
     #>
 
     [CmdletBinding()]
@@ -81,7 +82,7 @@
     {
         foreach ($app in $Apps)
         {
-            $isUserContext = ($app.PSPath -match 'HKEY_USERS')
+            $isUserContext = ($app.PSPath -imatch 'HKEY_(?:USERS|CURRENT_USER)\b')
             $appDisplayName = $app.DisplayName
 
             Write-ADTLogEntry -Message "Processing [$appDisplayName] for uninstallation in [$UninstallApps] mode."
@@ -106,7 +107,7 @@
                         $skipApp = $true
                     }
                 }
-                Default
+                default
                 {
                     # No action needed for UserAndSystemContextApps
                 }
@@ -127,7 +128,7 @@
 
             if (-not $uninstallString)
             {
-                Write-ADTLogEntry -Message "No uninstall string found for [$appDisplayName]. Skipping." -Severity 2
+                Write-ADTLogEntry -Message "No uninstall string found for [$appDisplayName]. Skipping." -Severity Error
                 continue
             }
             else
@@ -141,7 +142,7 @@
             # Final check
             if ($uninstallPath -notmatch "MsiExec.exe" -and -not (Test-Path $uninstallPath))
             {
-                Write-ADTLogEntry -Message "Uninstall path not found: [$uninstallPath]. Skipping." -Severity 2
+                Write-ADTLogEntry -Message "Uninstall path not found: [$uninstallPath]. Skipping." -Severity Error
                 continue
             }
 
@@ -149,7 +150,7 @@
             if (-not $isUserContext -and $uninstallString -match 'Msiexec.exe')
             {
                 Write-ADTLogEntry -Message "Uninstalling system-context MSI app: [$appDisplayName]"
-                $app | Uninstall-ADTApplication -ErrorAction SilentlyContinue
+                $app | Uninstall-ADTApplication -AdditionalArgumentList '/qn /norestart' -ErrorAction SilentlyContinue
                 continue
             }
 
@@ -178,7 +179,7 @@
                 }
                 if ($userMSIUninstallResult.StdErr.Length -gt 1)
                 {
-                    Write-ADTLogEntry -Message "User-context MSI uninstall error: [$($userMSIUninstallResult.StdErr)]" -Severity 2
+                    Write-ADTLogEntry -Message "User-context MSI uninstall error: [$($userMSIUninstallResult.StdErr)]" -Severity Error
                 }
 
                 continue
@@ -211,6 +212,7 @@
 
                 if ($PSBoundParameters.ContainsKey('UserContextEXEUninstallParameters'))
                 {
+                    Write-ADTLogEntry -Message "Using the following specified user-context EXE uninstall parameters: [$UserContextEXEUninstallParameters]"
                     $userLevelUninstallSplat['ArgumentList'] = $UserContextEXEUninstallParameters
                 }
 
@@ -222,7 +224,7 @@
                 }
                 if ($userLevelUninstallResult.StdErr.Length -gt 1)
                 {
-                    Write-ADTLogEntry -Message "User-context EXE uninstall error: [$($userLevelUninstallResult.StdErr)]" -Severity 2
+                    Write-ADTLogEntry -Message "User-context EXE uninstall error: [$($userLevelUninstallResult.StdErr)]" -Severity Error
                 }
 
                 continue
@@ -238,6 +240,7 @@
 
             if ($PSBoundParameters.ContainsKey('AdditionalSystemContextEXEUninstallParameters'))
             {
+                Write-ADTLogEntry -Message "Using the following additional system-context EXE uninstall parameters: [$AdditionalSystemContextEXEUninstallParameters]"
                 $systemLevelUninstallSplat['AdditionalArgumentList'] = $AdditionalSystemContextEXEUninstallParameters
             }
 
