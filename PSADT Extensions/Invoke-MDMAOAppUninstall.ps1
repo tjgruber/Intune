@@ -171,16 +171,7 @@ function Invoke-MDMAOAppUninstall
                     ErrorAction      = 'SilentlyContinue'
                 }
 
-                $userMSIUninstallResult = Start-ADTProcessAsUser @userMSIUninstallSplat
-
-                if ($userMSIUninstallResult.StdOut.Length -gt 1)
-                {
-                    Write-ADTLogEntry -Message "User-context MSI uninstall output: [$($userMSIUninstallResult.StdOut)]"
-                }
-                if ($userMSIUninstallResult.StdErr.Length -gt 1)
-                {
-                    Write-ADTLogEntry -Message "User-context MSI uninstall error: [$($userMSIUninstallResult.StdErr)]" -Severity Error
-                }
+                Start-ADTProcessAsUser @userMSIUninstallSplat
 
                 continue
             }
