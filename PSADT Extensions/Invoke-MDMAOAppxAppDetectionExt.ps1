@@ -32,12 +32,13 @@ function Invoke-MDMAOAppxAppDetectionExt
     .NOTES
         Function Name  : Invoke-MDMAOAppxAppDetectionExt
         Author         : Timothy Gruber
-        Version        : 1.0.0
+        Version        : 1.0.1
         Created        : 2025-09-15
-        Updated        : 2025-09-15
+        Updated        : 2026-01-08
 
         Version History:
         1.0.0 - (2024-10-23) Initial version.
+        1.0.1 - (2026-01-08) Added InstallerUserCount and InstalledUserSids to logging for Appx detection.
     #>
 
     [CmdletBinding()]
@@ -328,7 +329,16 @@ function Invoke-MDMAOAppxAppDetectionExt
                         $ia | Add-Member -NotePropertyName InstalledUserCount -NotePropertyValue 0
                     }
 
-                    Write-ADTLogEntry -Message "Found AppxProvisionedPackage: [$displayName], PackageName: [$($p.PackageName)], InstalledOn(Utc): [$installDate]."
+                    # Log InstalledUserCount, and InstalledUserSids if InstalledUserCount greater than 0
+                    if ($ia.InstalledUserCount -gt 0)
+                    {
+                        Write-ADTLogEntry -Message "Found AppxProvisionedPackage: [$displayName], PackageName: [$($p.PackageName)], InstalledOn(Utc): [$installDate], InstalledUserCount: [$($ia.InstalledUserCount)], InstalledUserSids: [$($ia.InstalledUserSids -join ', ')]."
+                    }
+                    else
+                    {
+                        Write-ADTLogEntry -Message "Found AppxProvisionedPackage: [$displayName], PackageName: [$($p.PackageName)], InstalledOn(Utc): [$installDate], InstalledUserCount: [$($ia.InstalledUserCount)]."
+                    }
+
                     $detectedAppxApps += $ia
                 }
 
@@ -418,7 +428,16 @@ function Invoke-MDMAOAppxAppDetectionExt
                         $ia | Add-Member -NotePropertyName InstalledUserCount -NotePropertyValue 0
                     }
 
-                    Write-ADTLogEntry -Message "Found AppxPackage: [$displayName], PackageFullName: [$($x.PackageFullName)], InstalledOn(Utc): [$installDate]."
+                    # Log InstalledUserCount, and InstalledUserSids if InstalledUserCount greater than 0
+                    if ($ia.InstalledUserCount -gt 0)
+                    {
+                        Write-ADTLogEntry -Message "Found AppxPackage: [$displayName], PackageFullName: [$($x.PackageFullName)], InstalledOn(Utc): [$installDate], InstalledUserCount: [$($ia.InstalledUserCount)], InstalledUserSids: [$($ia.InstalledUserSids -join ', ')]."
+                    }
+                    else
+                    {
+                        Write-ADTLogEntry -Message "Found AppxPackage: [$displayName], PackageFullName: [$($x.PackageFullName)], InstalledOn(Utc): [$installDate], InstalledUserCount: [$($ia.InstalledUserCount)]."
+                    }
+
                     $detectedAppxApps += $ia
                 }
             }
